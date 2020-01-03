@@ -3,6 +3,15 @@
 ## Scans a single image from a flatbed scanner, assigns a date-stamped
 ## name, stores in a folder for later editting / renaming
 
+HELP='
+## Needs package:
+   sudo apt-get install xsltproc
+## Needs drivers installed: 
+   export pkgLoc="/abyss/Installers/Linux/Linux Drivers/Epson Scanner"
+   sudo dpkg -i "$pkgLoc/iscan-data_1.26.0-1_all.deb"
+   sudo dpkg -i "$pkgLoc/iscan_2.29.3-1~usb0.1.ltdl7_amd64.deb"
+'
+
 ## You'll likely need to change these two values:
 ## The name of the scanner, use scanimage -L to find out what yours is:
 DEVNAME='epkowa'
