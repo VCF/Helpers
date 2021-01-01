@@ -6,6 +6,31 @@
 
 ## http://support.brother.com/g/b/downloadtop.aspx?c=us&lang=en&prod=ads2000_us
 
+## Mint keeps dropping the scanner out of the 'scanner' group.
+## Check to see that the device still belongs to it. Find the Bus/Device:
+scAll=$(lsusb | grep Brother)
+scBus=$(echo "$scAll" | egrep -o 'Bus ([0-9][0-9][0-9])' | sed 's/.* //')
+scDev=$(echo "$scAll" | egrep -o 'Device ([0-9][0-9][0-9])' | sed 's/.* //')
+if [[ -n "$scBus" && -n "$scDev" ]]; then
+    scPath="/dev/bus/usb/$scBus/$scDev"
+    scGrp=$(stat -c %G "$scPath")
+    if [[ "$scGrp" != "scanner" ]]; then
+        echo -e "\033[35m
+The USB bus handling the scanner does not belong to the proper group. Please
+run the following to allow the script to function:
+    sudo chgrp scanner $scPath
+\033[0m"
+        exit
+    fi
+    ## Ok, everything seems good
+else
+    echo -e"\033[35m
+... failed to determine Bus/Device for scanner ...
+    If scanning fails, try to determine if the USB mount has the correct
+    group assignment ('scanner', instead of 'root')
+\033[0m"
+fi
+
 ##### Create output directory for today's date #####
 ## Directories are of course local to my network...
 ## Scratch space on badger:
