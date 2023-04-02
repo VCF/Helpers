@@ -18,11 +18,16 @@
 #'
 #'           
 #'
-#'        ===========        
-#'        |         | spacer: separates inner and outer polygons
-#'        |         |
-#'     ==================
-#'
+#'          "Inner" : board composing inside polygon
+#' 
+#'        ###########        
+#'        H         H     "Spacer" (2x): separates inner and outer polygons
+#'        H         H
+#'     ##################
+#' 
+#'                   ^--^ "Spacer Offset" : Length of 'overhang'
+#'          "Outer" : board composing outside polygon
+#'          
 #'
 #' @param outer Required. How long is each side of the outer polygon,
 #'        in inches?
@@ -41,28 +46,29 @@
 #'
 #' x <- holzHausen(24,sides=12)
 #' 
-#' #    Number of Sides: 12
-#' #       Outer Length: 2'
-#' #       Inner Length: 1' 6.4"
-#' #      Spacer Length: 9"
+#' #     Number of Sides: 12
+#' #          Outer Side: 2'
+#' #          Inner Side: 1' 6.4"
+#' #       Spacer Length: 9"
 #' #       Spacer Offset: 2.8"
 #' #       Pile Diameter: 7' 8.7"
 #' #      Inner Diameter: 5' 11"
 #' #        Lumber Width: 1.5"
 #' #     Height per Cord: 2' 9"
 #'
-#' # Return value is a named numeric vector
-#' x
-#'
-#' # Number of Sides    Outer Length    Inner Length   Spacer Length   Spacer Offset 
-#' #           12.00           24.00           18.38            9.00            2.81 
-#' #   Pile Diameter  Inner Diameter    Lumber Width Height per Cord 
-#' #           92.70           71.00            1.50           33.00 
+#' @return
+#' 
+#' A named numeric vector, invisibly
+#' 
+#' Number of Sides     Outer Side   Inner Side   Spacer Length Spacer Offset 
+#'           12.00          24.00        18.38            9.00          2.81 
+#'   Pile Diameter Inner Diameter Lumber Width Height per Cord 
+#'           92.70          71.00         1.50           33.00 
 
 
 holzHausen <- function(outer, sides=8, spacer=9, lumberWid=1.5 ) {
     ## Return value structure
-    rv <- c("Number of Sides"=sides, "Outer Length"=outer)
+    rv <- c("Number of Sides"=sides, "Outer Side"=outer)
             
     ## What is the angle we need to calculate the inner edge?
     ang <- 2 * pi / (sides*2) # in radians
@@ -74,14 +80,14 @@ holzHausen <- function(outer, sides=8, spacer=9, lumberWid=1.5 ) {
     soff <- signif(tan(ang) * (lumberWid + spacer),3)
     
     ## Then how long is the inner polygon side?
-    rv["Inner Length"]  <- outer - (2*soff)
+    rv["Inner Side"]  <- outer - (2*soff)
     rv["Spacer Length"] <- spacer
     rv["Spacer Offset"] <- soff
     
     ## What is the diameter of a circle intersecting polygon vertices?
     rv["Pile Diameter"] <- signif(outer / sin(ang), 3)
     ## What about the diameter of the inner polygon?
-    rv["Inner Diameter"] <- signif(rv["Inner Length"] / sin(ang), 3)
+    rv["Inner Diameter"] <- signif(rv["Inner Side"] / sin(ang), 3)
 
     rv["Lumber Width"]  <- lumberWid
 
