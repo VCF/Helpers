@@ -1,0 +1,17 @@
+<!-- styles to support image navigation -->
+
+.showOrig .orig { display:block ! important; }
+.showConv .conv { display:block ! important; }
+.showConv .orig { display:none ! important; }
+.showOrig .conv { display:none ! important; }
+
+.err  { color:red; background-color: yellow; }
+.noAct { color:blue; background-color: yellow; }
+
+.orsz { color:red }
+.cnsz { color:green }
+
+.show { display: block ! important }
+.hide { display: none ! important }
+
+.small img { max-height: 800px }
