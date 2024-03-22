@@ -32,6 +32,13 @@ Enter the number of seconds you wish to time
 "
     exit;
 fi
+
+if [[ `echo "$TIME" | egrep -i '(m|min)'` ]]; then
+    ## Request is in minutes
+    TIME=`echo "$TIME" | sed -E 's/ *(min|m)//'`
+    TIME=$((60 * TIME))
+fi
+
 END=$((START + TIME))
 
 # Floating point math:
