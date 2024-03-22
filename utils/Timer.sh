@@ -5,6 +5,8 @@
 
 my_dir="$(dirname "$0")"
 
+. "$my_dir/timeFunctions.sh"
+
 CF="$my_dir/../../confFiles"
 UTF="$CF/systemSetup/_util_functions.sh"
 if [[ -f "$UTF" ]]; then
@@ -23,21 +25,20 @@ fi
 
 ALARMEXE="$my_dir/Alarm.sh"
 
-TIME=$1
+TREQ="$1"
 START=`date +%s`
 
-if [ -z "$TIME" ]; then
+if [ -z "$TREQ" ]; then
     msg 36 "
-Enter the number of seconds you wish to time
+Enter the time you wish to countdown
+
 "
     exit;
 fi
 
-if [[ `echo "$TIME" | egrep -i '(m|min)'` ]]; then
-    ## Request is in minutes
-    TIME=`echo "$TIME" | sed -E 's/ *(min|m)//'`
-    TIME=$((60 * TIME))
-fi
+TIME="$(requestToSeconds "$TREQ")"
+
+[[ -z "$TIME" ]] && exit
 
 END=$((START + TIME))
 
@@ -69,8 +70,8 @@ do
         # Color time yellow when down to 20%
         PERCCOL="33"
     fi
-    FMT='\r\e['$BLINKCOL'mSeconds remaining\e[m: \e['$PERCCOL'm%6d\e[m'
-    printf "$FMT" $REMAIN
+    FMT='\r\e['$BLINKCOL'mRemaining\e[m: \e['$PERCCOL'm%s\e[m\e[0K'
+    printf "$FMT" "$(secondsToNiceTime "$REMAIN")"
     sleep 1
 done
 printf "\r\e[41;33;1mCountdown Complete\e[m $TIME seconds elapsed. \e[34mHit Ctrl-c to cancel\e[m\n"
