@@ -25,7 +25,7 @@ SOUND=$BASE
 ## AudioPreview no longer in Tricia
 pexe="gst123"
 # PLAYER=`which audiopreview`
-PLAYER=`which $pexe`
+PLAYER="$(which $pexe)"
 TERMINAL=`which aterm`
 VOL=50
 #TERMINAL=xterm
