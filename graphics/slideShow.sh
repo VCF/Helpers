@@ -3,7 +3,12 @@
 # Basically just a reminder of how to launch a randomized slide show
 # with feh
 
-FOLDER="${1-:.}"
+FOLDER="${1:-.}"
+
+echo "
+Randomized slide show for folder:
+  \"$FOLDER\"
+"
 
 feh \
     --recursive \
@@ -11,5 +16,5 @@ feh \
     --auto-zoom \
     --slideshow-delay 10 \
     --quiet \
-    --geometry 1600x1000 \
+    --fullscreen \
     "$FOLDER"
