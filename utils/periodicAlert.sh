@@ -54,6 +54,7 @@ do
     ## We have more repetitiions to perform
     NOW=$(date +%s)
     ## What is the future time we should wait for?
+    EVENT=$(( $EVENT + $TIME ))
     until [ $NOW -lt $EVENT ]
     do
         ## We calculate this in a loop - because I learned the hard
@@ -61,6 +62,7 @@ do
         ## will play the alert each time until the current time is
         ## reached, and this prevents login, at least in Ubuntu.
         EVENT=$(( $EVENT + $TIME ))
+        DONE=$(( $DONE + 1 ))
     done
 
     ## Alright, now we have the next most-proximal event in the future
