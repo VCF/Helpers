@@ -24,8 +24,38 @@ Please verify the drive is writable by you.
     exit
 fi
 
-optFile="$backupConfig/backupSettings.sh"
 
+## Read the path exclusion file, make it if it does not exist
+excludeFile="$backupConfig/rsync_exclude.txt"
+if [[ ! -s "$excludeFile" ]]; then
+    echo "# rsync filter set for rsync_active.sh
+
+# a trailing  \"dir_name/***\"  matches the directory and everything in it
+
+# We have backed up CoolScan elsewhere
+- CoolScan/***
+
+# No interest in backing up the trash:
+- .Trash-1000/***
+
+" > "$excludeFile"
+    
+    echo "A blank exclude file has been created at:
+
+  $excludeFile
+
+You may edit that file and follow the instructions inside it to configure
+your drive for files to exclude from the backups.
+"
+else
+    echo "
+Paths found in this file will be excluded:
+  $excludeFile
+"
+fi
+
+## The settings file defines the directories we will synchronize
+optFile="$backupConfig/backupSettings.sh"
 if [[ ! -s "$optFile" ]]; then
     echo "#!/usr/bin/env bash
 
@@ -63,6 +93,7 @@ fi
 
 ## Source the configuration file
 . "$optFile"
+
 
 if [[ -z "$sourceDirs" ]]; then
     echo "Configuration file read:
@@ -132,6 +163,7 @@ $BAR
 " >> "$REPORT"
         
         rsync -avh \
+              --exclude-from "$excludeFile" \
               "$path/" \
               "$TARG" \
               >> "$REPORT"
@@ -161,3 +193,30 @@ $BAR
 END: $(date '+%H:%M %b %d')
 $BAR
 " >> "$REPORT"
+
+
+# -g : Preserve group
+# -l : keep symlinks as symlinks
+# -n : dry run
+# -o : Preserve owner
+# -p : Preserve permissions
+# -r : recursive
+# -t : preserve timestamp
+# -v : verbose
+# -v : verbose
+# -x : do not cross file system boundaries
+# -z : compression
+# -a : -rlptgoD (no -H,-A,-X)
+#      recursive and preserve:
+#      symlinks
+#      permissions / owner / group
+#      timestamp
+# --progress : show progress
+#              Does not seem too useful with a file list
+#              (progress is per each file)
+# --delete : delete extraneous files from the receiving side
+
+## https://superuser.com/a/588279
+# --ignore-errors : delete even if there are I/O errors
+#   Addresses: "IO error encountered -- skipping file deletion"
+#   Allows file deletion to occur even if something else bothered rsync
