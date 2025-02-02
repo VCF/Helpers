@@ -83,26 +83,31 @@ function downloadFile {
         msg "$FgCyan" "Retry: $url";
     fi
 
-    targ="$baseDir"
     name=$(basename "$url")
     ## We will download to a temp location to assess success and be
     ## somewhat atomic:
+    mkdir -p "$tempDir"
     tmp="$tempDir/$name"
     [[ -f "$tmp" ]] && rm "$tmp" # Remove file if already there
 
+    cd "$tempDir"
     CMD="wget"
     [[ $useTor != "" ]] && CMD="torsocks $CMD"
     CMD="$CMD -o \"$logFile\"" # messages to logfile
-    CMD="$CMD -O \"$tmp\""     # Write to tempfile
     CMD="$CMD \"$url\""        # URL To get
-    # eval "$CMD"
+    eval "$CMD"
 
-    if [[ ! -s "$tmp" ]]; then
+    if [[ ! -f "$name" ]]; then
         warn "Failed to download: $url"
+        urlStatus "$url" "FAIL"
+        return
+    elif [[ ! -s "$name" ]]; then
+        warn "Downloaded zero-length file: $url"
         urlStatus "$url" "FAIL"
         return
     fi
     
+    targ="$baseDir"
     [[ "$subDir" != "" ]] && targ="$baseDir/$subDir"
     if [[ ! -d "$targ" ]]; then
         mkdir -p "$targ"
@@ -173,7 +178,7 @@ EOF
         echo "$v"
     else
         ## Get request
-        echo $(sqlite3 "$metaDB" "SELECT status FROM urls WHERE url="$u"")
+        echo $(sqlite3 "$metaDB" "SELECT status FROM urls WHERE url='$u'")
     fi
 }
 
@@ -183,6 +188,7 @@ function setConf {
     ## Uppercase: https://stackoverflow.com/a/11392248
     KEY=${KEY^^}
     VAL=$(echo "$txt" | sed 's/^[A-Za-z]*=//')
+    info "$KEY + $VAL"
     if [[ "$KEY" == "USETOR" ]]; then
         ## Configuring if torsocks is used
         if [[ "$VAL" == "" ]]; then
@@ -209,11 +215,24 @@ function setConf {
             info "SET: Download directory (relative) = $VAL"
             baseDir="$mDir/$VAL"
         fi
+        cd "$baseDir"
     elif [[ "$KEY" == "SUBDIR" ]]; then
-        info "SET: Download subdirectory = $VAL";
+        if [[ "$VAL" == "" ]]; then
+            info "CLEAR: Subdirectory cleared"
+            cd "$baseDir"
+        else
+            info "SET: Download subdirectory = $VAL";
+            cd "$baseDir/$VAL"
+        fi
         subDir="$VAL"
     elif [[ "$KEY" == "DATABASE" ]]; then
         setupDatabase "$VAL"
+    elif [[ "$KEY" == "HALT" ]]; then
+        ## Command to stop processing of the file at this point
+        if [[ "$VAL" != "" ]]; then
+            note "Request to halt processing"
+            exit
+        fi
     elif [[ "$KEY" == "" ]]; then
         foo=1
     else
@@ -232,3 +251,4 @@ while IFS= read -r line; do
     fi
 done < "$MANIFEST"
 
+[[ "$logFile" == "" ]] || info "Logfile at: $logFile"
