@@ -27,17 +27,12 @@ function msg {
     >&2 echo -e "\033[1;${COL}m${MSG}\033[0m";
 }
 
-function warn {
-    msg "$BgYellow;$FgRed" "$1"
-}
+## Just some pre-fommated msg commands
+warn()  { msg "$BgYellow;$FgRed" "$1" }
+error() { msg "$BgRed;$FgYellow" "$1" }
+info()  { msg "$BgBlue;$FgWhite" "$1" }
+note()  { msg "$FgBlue" "$1" }
 
-function error {
-    msg "$BgRed;$FgYellow" "$1"
-}
-
-function info {
-    msg "$BgBlue;$FgWhite" "$1"
-}
 
 function grepPattern {
     PAT="$1"
