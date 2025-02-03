@@ -200,6 +200,10 @@ function resize {
     echo "$rsFile"
 }
 
+function checkDupe {
+    ## http://www.jhnc.org/findimagedupes/manpage.html
+}
+
 function downloadFile {
     url="$1"
     stat=$(urlStatus "$url")
@@ -223,6 +227,7 @@ function downloadFile {
     CMD="wget"
     [[ $useTor != "" ]] && CMD="torsocks $CMD"
     CMD="$CMD -a \"$wgetLog\"" # messages to logfile
+    CMD="$CMD -U firefox"      # User agent needed for Imgur
     CMD="$CMD \"$url\""        # URL To get
     eval "$CMD"
 
