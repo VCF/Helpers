@@ -112,7 +112,7 @@ function fileType {
     if [[ $sfx == "jpg" || $sfx == "jpeg" ]]; then
         echo "jpg";
     elif [[ $sfx == "png" || $sfx == "gif" || $sfx == "webp" ||
-                $sfx == "html" ]]; then
+                $sfx == "html" || $sfx == "mp4" ]]; then
         echo "$sfx";
     else
         info "Unanticipated file type: $sfx"
@@ -202,31 +202,33 @@ function resize {
 
 function checkDupe {
     ## http://www.jhnc.org/findimagedupes/manpage.html
+    echo "WIP"
 }
 
 function downloadFile {
     url="$1"
     stat=$(urlStatus "$url")
     if [[ "$stat" == "PASS" ]]; then
-        msg "$FgWhite" "Already Done: $url";
+        msg "$FgWhite;$BgBlack" "Already Done: $url";
         return
     elif [[ "$stat" == "FAIL" ]]; then
-        msg "$FgCyan" "Retry: $url";
+        msg "$FgCyan;$BgBlack" "Retry: $url";
     fi
 
     name=$(basename "$url")
-    ft=$(fileType "$name")
+    # ft=$(fileType "$name")
    
     ## We will download to a temp location to assess success and be
     ## somewhat atomic:
     mkdir -p "$tempDir"
-    tmp="$tempDir/$name"
+    tmp="$tempDir/wgetTemp"
     [[ -f "$tmp" ]] && rm "$tmp" # Remove file if already there
 
     cd "$tempDir"
     CMD="wget"
     [[ $useTor != "" ]] && CMD="torsocks $CMD"
     CMD="$CMD -a \"$wgetLog\"" # messages to logfile
+    CMD="$CMD -O \"$tmp\""     # Use a temp name
     CMD="$CMD -U firefox"      # User agent needed for Imgur
     CMD="$CMD \"$url\""        # URL To get
     eval "$CMD"
