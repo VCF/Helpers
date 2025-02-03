@@ -28,10 +28,10 @@ function msg {
 }
 
 ## Just some pre-fommated msg commands
-warn()  { msg "$BgYellow;$FgRed" "$1" }
-error() { msg "$BgRed;$FgYellow" "$1" }
-info()  { msg "$BgBlue;$FgWhite" "$1" }
-note()  { msg "$FgBlue" "$1" }
+warn  () { msg "$BgYellow;$FgRed" "$1"; }
+error () { msg "$BgRed;$FgYellow" "$1"; }
+info  () { msg "$BgBlue;$FgWhite" "$1"; }
+note  () { msg "$FgBlue" "$1"; }
 
 
 function grepPattern {
