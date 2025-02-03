@@ -43,3 +43,54 @@ function grepPattern {
     fi
     echo $(echo "$TXT" | egrep -o "$PAT")
 }
+
+function fileTypeRigorous {
+    ## Use `file` to assess contents of the downloaded file
+    path="$1"
+    chk=$(file "$path" | sed 's/^.*://')
+    if [[ $(grepPattern "JPEG image" "$path") != "" ]]; then
+        echo "jpg"
+    elif [[ $(grepPattern "Web.P image" "$path") != "" ]]; then
+        echo "webp"
+    elif [[ $(grepPattern "PNG image" "$path") != "" ]]; then
+        echo "png"
+    elif [[ $(grepPattern "GIF image" "$path") != "" ]]; then
+        echo "gif"
+    elif [[ $(grepPattern "ASCII text" "$path") != "" ]]; then
+        echo "txt"
+        ## Does not get nuance, like .md or .js !!
+    elif [[ $(grepPattern "MP4 Base Media" "$path") != "" ]]; then
+        echo "mp4"
+    elif [[ $(grepPattern "PDF document," "$path") != "" ]]; then
+        echo "pdf"
+    elif [[ $(grepPattern "Zip archive" "$path") != "" ]]; then
+        echo "zip"
+    elif [[ $(grepPattern "EPUB document" "$path") != "" ]]; then
+        echo "epub"
+    elif [[ $(grepPattern "WebM" "$path") != "" ]]; then
+        echo "webm"
+    elif [[ $(grepPattern "OpenDocument Presentation" "$path") != "" ]]; then
+        echo "odp"
+    elif [[ $(grepPattern "OpenDocument Spreadsheet" "$path") != "" ]]; then
+        echo "ods"
+    elif [[ $(grepPattern "Debian binary package" "$path") != "" ]]; then
+        echo "deb"
+    elif [[ $(grepPattern "Apple Driver Map" "$path") != "" ]]; then
+        echo "dmg"
+    elif [[ $(grepPattern "FooBar" "$path") != "" ]]; then
+        echo "foo"
+    elif [[ $(grepPattern "FooBar" "$path") != "" ]]; then
+        echo "foo"
+    elif [[ $(grepPattern "FooBar" "$path") != "" ]]; then
+        echo "foo"
+    elif [[ $(grepPattern "FooBar" "$path") != "" ]]; then
+        echo "foo"
+    elif [[ $(grepPattern "FooBar" "$path") != "" ]]; then
+        echo "foo"
+    else
+        echo "unk"
+        warn "Unknown file type for: $path
+$chk"
+    fi
+}
+
