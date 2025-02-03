@@ -24,7 +24,7 @@ Please provide the folder of images as the first argument. Full arguments:
   * Folder to be processed
   * Desired output size, in kb (Default '300')
   * Threshold factor for input files (Default '2')
-      That is, do not try to convert files unless their 2x as large
+      That is, do not try to convert files unless they're 2x as large
       as desired output
   * Minimum percent savings (Default '50')
       That is, do not bother converting unless you can acheive at least
