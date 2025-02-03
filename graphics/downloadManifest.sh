@@ -14,18 +14,21 @@ Available options:
 All options are case insensitive. Options can be set anywhere in the manifest,
 can be reset any number of times, and will affect all URLs that follow.
 
-       DIR The directory to download files to. If the value starts with '/'
-           it will be treated as an absolute path, otherwise will be 
-           relative to the manifest.
-           Default: '../downloads'
+       DIR The directory to download files to. If the value starts
+           with '/' it will be treated as an absolute path, otherwise
+           will be relative to the manifest.  Default: '../downloads'
 
     SUBDIR Optional subdirectory relative to DIR
 
     USETOR Any non-blank value will cause download to be wrapped in torsocks,
            causing the file recovery to use the Tor network
 
-  DATABASE An optional SQLite database that will be used to track metadata
-           about each file, avoid repeat downloads, and manage failed attempts
+    METADB Path to an optional SQLite database that will be used to
+           track metadata about each file, avoid repeat downloads, and
+           manage failed attempts
+
+    DUPEDB Path to an optional dupliate image database used to prevent
+           re-adding the same image to the collection.
 
 "
 
@@ -64,6 +67,8 @@ subDir=""
 useTor=""
 ## Optional SQLite database file to maintain metadata
 metaDB=""
+## Optional image duplication database (findimagedupes)
+dupeDB=""
 
 mLine=$(wc -l "$MANIFEST" | sed 's/ .*//')
 mSize=$(ls -1s "$MANIFEST" | sed 's/ .*//')
@@ -72,6 +77,19 @@ msg "$FgGreen" "Parsing $MANIFEST: $mLine lines, ${mSize}kb"
 echo "######## $(date +"%Y-%m-%d %H:%M%p") $mLine lines, ${mSize}kb ########
 $MANIFEST
 " >> "$logFile"
+
+function fileType {
+    path="${1^^}"
+    sfx=$(echo "$path" | grep -o '[^\.]*$')
+    if [[ $sfx == "JPG" || $sfx == "JPEG" ]]; then
+        echo "JPG";
+    elif [[ $sfx == "PNG" || $sfx == "GIF" || $sfx == "WEBP" ||
+                $sfx == "HTML" ]]; then
+        echo "$sfx";
+    else
+        echo "UNK";
+    fi
+}
 
 function downloadFile {
     url="$1"
@@ -93,17 +111,17 @@ function downloadFile {
     cd "$tempDir"
     CMD="wget"
     [[ $useTor != "" ]] && CMD="torsocks $CMD"
-    CMD="$CMD -o \"$logFile\"" # messages to logfile
+    CMD="$CMD -a \"$logFile\"" # messages to logfile
     CMD="$CMD \"$url\""        # URL To get
     eval "$CMD"
 
     if [[ ! -f "$name" ]]; then
         warn "Failed to download: $url"
-        urlStatus "$url" "FAIL"
+        x=$(urlStatus "$url" "FAIL")
         return
     elif [[ ! -s "$name" ]]; then
         warn "Downloaded zero-length file: $url"
-        urlStatus "$url" "FAIL"
+        x=$(urlStatus "$url" "FAIL")
         return
     fi
     
@@ -132,8 +150,15 @@ function setupDatabase {
     chk=$(which "sqlite3")
     if [[ "$chk" == "" ]]; then
         error "Tracking file metadata requires SQLite:
-  sudo apt install sqlite3"
+  sudo apt install sqlite3
+  Metadata database functionaliy not available"
         exit
+    fi
+    chk2=$(sqlite3 --version | egrep -o '^[0-9]*\.[0-9]*' )
+    if [[ $chk2 < 3.24 ]]; then
+        error "sqlite3 is version $chk2, 3.24 required for UPSERT commands
+  Metadata database functionaliy not available"
+        return
     fi
     if [[ $(grepPattern "^/" "$path") == "" ]]; then
         ## Database defined relative to manifest
@@ -148,7 +173,7 @@ function setupDatabase {
     
     ## We need to create the DB
     sqlite3 "$metaDB" <<EOF
-CREATE TABLE urls (url TEXT PRIMARY KEY, md5 TEXT, status TEXT, size INTEGER);
+CREATE TABLE urls (url TEXT PRIMARY KEY, type TEXT, md5 TEXT, status TEXT, size INTEGER);
 CREATE INDEX urlmd5 on urls (md5);
 CREATE TABLE tagval (md5 TEXT, tag TEXT, val TEXT);
 CREATE INDEX mdTag on tagval (md5, tag);
@@ -188,7 +213,7 @@ function setConf {
     ## Uppercase: https://stackoverflow.com/a/11392248
     KEY=${KEY^^}
     VAL=$(echo "$txt" | sed 's/^[A-Za-z]*=//')
-    info "$KEY + $VAL"
+
     if [[ "$KEY" == "USETOR" ]]; then
         ## Configuring if torsocks is used
         if [[ "$VAL" == "" ]]; then
@@ -225,14 +250,16 @@ function setConf {
             cd "$baseDir/$VAL"
         fi
         subDir="$VAL"
-    elif [[ "$KEY" == "DATABASE" ]]; then
+    elif [[ "$KEY" == "METADB" ]]; then
         setupDatabase "$VAL"
     elif [[ "$KEY" == "HALT" ]]; then
         ## Command to stop processing of the file at this point
         if [[ "$VAL" != "" ]]; then
             note "Request to halt processing"
-            exit
+            HALT="Yes"
         fi
+    elif [[ "$KEY" == "DUPEDB" ]]; then
+        
     elif [[ "$KEY" == "" ]]; then
         foo=1
     else
@@ -242,6 +269,7 @@ function setConf {
 
 ## Read line-by-line: https://stackoverflow.com/a/10929511
 while IFS= read -r line; do
+    [[ "$HALT" == "" ]] || break
     if [[ ! "$line" ]]; then
         BLANK=1 ## No-op for blank lines
     elif [[ $(grepPattern "^https://" "$line") != "" ]]; then
