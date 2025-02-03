@@ -30,7 +30,16 @@ can be reset any number of times, and will affect all URLs that follow.
     DUPEDB Path to an optional dupliate image database used to prevent
            re-adding the same image to the collection.
 
+   MAXSIZE For images, the desired maximum file size, in KB
+           Default 300
+
+   MINSAVE When resizing, give up (keep original file) if percentage
+           size savings is less than this value. For example, if a
+           100kb file is reduced to 80kb, you've saved 20%
+           ('20'). Default 50
+
 "
+
 
 
 ## script folder: https://stackoverflow.com/a/246128
@@ -41,18 +50,27 @@ myLaunchDir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 MANIFEST="$1"
 
 if [[ ! "$MANIFEST" ]]; then
-    warn "You need to provide the path to the URL manifest"
     note "$README"
+    warn "You need to provide the path to the URL manifest"
     exit
 elif [[ ! -f "$MANIFEST" ]]; then
     error "Manifest file not found: $MANIFEST"
     exit
 fi
 
+chk=$(which convert)
+if [[ "$chk" == "" ]]; then
+        error "The program requires ImageMagick to be installed:
+  sudo apt install imagemagick"
+        exit
+fi
+
+
 ## Directory holding manifest:
 mDir=$(dirname "$MANIFEST")
 ## Working directory
 tempDir="$mDir/temp"
+wgetLog="$tempDir/wget.log"
 
 ## Default configuration, can be changed in manifest
 ## The base folder for holding downloaded files
@@ -69,6 +87,10 @@ useTor=""
 metaDB=""
 ## Optional image duplication database (findimagedupes)
 dupeDB=""
+## Maximum file size in kb
+maxSize="300"
+## Minimum file compression to keep resize:
+minSave="50"
 
 mLine=$(wc -l "$MANIFEST" | sed 's/ .*//')
 mSize=$(ls -1s "$MANIFEST" | sed 's/ .*//')
@@ -78,17 +100,104 @@ echo "######## $(date +"%Y-%m-%d %H:%M%p") $mLine lines, ${mSize}kb ########
 $MANIFEST
 " >> "$logFile"
 
+echo "######## $(date +"%Y-%m-%d %H:%M%p") $mLine lines, ${mSize}kb ########
+$MANIFEST
+" > "$wgetLog"
+
 function fileType {
-    path="${1^^}"
-    sfx=$(echo "$path" | grep -o '[^\.]*$')
-    if [[ $sfx == "JPG" || $sfx == "JPEG" ]]; then
-        echo "JPG";
-    elif [[ $sfx == "PNG" || $sfx == "GIF" || $sfx == "WEBP" ||
-                $sfx == "HTML" ]]; then
+    path="${1,,}"
+    ## Strip off any GET parameters after '?'
+    ## Keep only last text after '.'
+    sfx=$(echo "$path" | sed 's/\?.*$//' | grep -o '[^\.]*$' )
+    if [[ $sfx == "jpg" || $sfx == "jpeg" ]]; then
+        echo "jpg";
+    elif [[ $sfx == "png" || $sfx == "gif" || $sfx == "webp" ||
+                $sfx == "html" ]]; then
         echo "$sfx";
     else
-        echo "UNK";
+        info "Unanticipated file type: $sfx"
+        echo "$sfx";
     fi
+}
+
+function filesz {
+    ## Get size of a file
+    ## Did not work:  https://unix.stackexchange.com/a/16645
+    ## du -kh "$1" | cut -f1
+    ##   https://unix.stackexchange.com/a/16644
+    bytes=$(stat --printf="%s" "$1")
+    echo $(( $bytes / 1024 ))
+}
+
+function aniGif {
+    ## Check if a file is an animated GIF
+    ## Relevant because we don't want to attempt resizing these
+    ## Suffix extraction: https://stackoverflow.com/a/965069
+    sfx="${1##*.}"
+    if [[ "$sfx" == "gif" ]]; then
+        ##  https://unix.stackexchange.com/q/224631
+        ires=$(identify -format '%n %i\n' -- "$1" | wc -l)
+        if [[ "$ires" == "1" ]]; then
+            ## Single frame GIF
+            echo "FALSE"
+        else
+            echo "TRUE"
+        fi
+    else
+        ## Not a GIF
+        echo "FALSE"
+    fi
+}
+
+function resize {
+    path="$1"
+    if [[ "$maxSize" == "" ]]; then
+        ## Resizing turned off, keep original file
+        echo "$path"
+        return
+    fi
+    ft=$(fileType "$path")
+    if [[ $ft != "jpg" && $ft != "png" && $ft != "webp" && $ft != "gif" ]]; then
+        ## The file does not appear to be an image
+        # echo "Non-image: $path" >> "$logFile"
+        echo "$path"
+        return
+    fi
+    isAni=$(aniGif "$path")
+    if [[ "$isAni" == "TRUE" ]]; then
+        ## The file appears to be an animated gif, do not attempt resize
+        echo "$path"
+        return
+    fi
+
+    ## See if resizing gets us the savings we requested
+    srcSz=$(filesz "$path")
+    ## Convert to a temp file
+    rsFile="$path.resize.jpg"
+    rm -f "$rsFile"
+    ## ImageMagick's convert utility
+    ## The extent flag allows a requested file size to be set
+    convert "$path" \
+            -define jpeg:extent="$maxSize"kb \
+            "$rsFile" \
+            > "STDERR.txt" 2>&1
+    
+    if [[ ! -s "$rsFile" ]]; then
+        echo "Failed to resize: $path" >> "$logFile"
+        echo "$path"
+        return
+    fi
+
+    outSz=$(filesz "$rsFile")
+    reduce=$((100 * ($srcSz - $outSz) / $srcSz))
+
+    if [[ $reduce -lt $MINSAVE ]]; then
+        ## Conversion was "not worth it"
+        echo "$path"
+        return
+    fi
+    echo "RESIZED: ${reduce}% savings: $path" >> "$logFile"
+    echo "$rsFile"
 }
 
 function downloadFile {
@@ -102,6 +211,8 @@ function downloadFile {
     fi
 
     name=$(basename "$url")
+    ft=$(fileType "$name")
+   
     ## We will download to a temp location to assess success and be
     ## somewhat atomic:
     mkdir -p "$tempDir"
@@ -111,7 +222,7 @@ function downloadFile {
     cd "$tempDir"
     CMD="wget"
     [[ $useTor != "" ]] && CMD="torsocks $CMD"
-    CMD="$CMD -a \"$logFile\"" # messages to logfile
+    CMD="$CMD -a \"$wgetLog\"" # messages to logfile
     CMD="$CMD \"$url\""        # URL To get
     eval "$CMD"
 
@@ -124,7 +235,14 @@ function downloadFile {
         x=$(urlStatus "$url" "FAIL")
         return
     fi
-    
+
+    ## We appear to have downloaded the file
+    ## Go through resize check and process:
+    name=$(resize "$name")
+    sz=$(filesz "$name")
+    ft=$(fileType "$name")
+    cs=$(md5sumFile "$name" "$url")
+        
     targ="$baseDir"
     [[ "$subDir" != "" ]] && targ="$baseDir/$subDir"
     if [[ ! -d "$targ" ]]; then
@@ -135,6 +253,38 @@ function downloadFile {
         fi
         info "Directory created: $targ"
     fi
+    ## Rename the file to its checksum, and move it to the desired destination
+    targPath="$targ/$cs.$ft"
+    mv "$name" "$targPath"
+
+    if [[ ! -s "$targPath" ]]; then
+        error "File was downloaded, but somehow failed to move to destination"
+        x=$(urlStatus "$url" "FAIL")
+    fi
+        
+    ## We seem to have succeeded
+    x=$(urlStatus "$url" "PASS")
+    if [[ "$metaDB" != "" ]]; then
+        ## Record details in metadata database
+        sqlite3 "$metaDB" <<EOF
+UPDATE urls
+   SET md5 = "$cs", type = "$ft", path = "$targPath", size = "$sz"
+ WHERE url = "$url"
+EOF
+           
+    fi
+    msg "$BgWhite;$FgGreen" "$cs.$ft ${sz}kb - $url"
+ }
+
+function md5sumFile {
+    path="$1"
+    u="$2"
+    if [[ ! -s "$path" ]]; then
+        echo "0000"
+        return
+    fi
+    cs=$(md5sum "$path" | sed 's/ .*//')
+    echo "$cs"
 }
 
 function setupDatabase {
@@ -160,6 +310,7 @@ function setupDatabase {
   Metadata database functionaliy not available"
         return
     fi
+    
     if [[ $(grepPattern "^/" "$path") == "" ]]; then
         ## Database defined relative to manifest
         path="$mDir/$path"
@@ -173,7 +324,7 @@ function setupDatabase {
     
     ## We need to create the DB
     sqlite3 "$metaDB" <<EOF
-CREATE TABLE urls (url TEXT PRIMARY KEY, type TEXT, md5 TEXT, status TEXT, size INTEGER);
+CREATE TABLE urls (url TEXT PRIMARY KEY, type TEXT, md5 TEXT, status TEXT, size INTEGER, path TEXT);
 CREATE INDEX urlmd5 on urls (md5);
 CREATE TABLE tagval (md5 TEXT, tag TEXT, val TEXT);
 CREATE INDEX mdTag on tagval (md5, tag);
@@ -190,6 +341,7 @@ EOF
 }
 
 function urlStatus {
+    ## 'status' tracks the success of downloading the file
     [[ $metaDB == "" ]] && return
     u="$1"
     v="$2"
@@ -204,6 +356,25 @@ EOF
     else
         ## Get request
         echo $(sqlite3 "$metaDB" "SELECT status FROM urls WHERE url='$u'")
+    fi
+}
+
+function urlType {
+    ## 'type' tracks the file type associated with the URL
+    [[ $metaDB == "" ]] && return
+    u="$1"
+    v="$2"
+    if [[ "$v" != "" ]]; then
+        ## This is a set request
+        ## We will use the non-standard UPSERT
+        sqlite3 "$metaDB" <<EOF
+INSERT INTO urls (url, type) VALUES ("$u", "$v")
+ ON CONFLICT(url) DO UPDATE SET status=excluded.type;
+EOF
+        echo "$v"
+    else
+        ## Get request
+        echo $(sqlite3 "$metaDB" "SELECT type FROM urls WHERE url='$u'")
     fi
 }
 
@@ -259,7 +430,27 @@ function setConf {
             HALT="Yes"
         fi
     elif [[ "$KEY" == "DUPEDB" ]]; then
-        
+        chk=$(which findimagedupes)
+        if [[ "$chk" == "" ]]; then
+            error "Duplicate image checking requires package installation:
+  sudo apt install findimagedupes"
+            exit
+        fi
+        dupeDB="$VAL"
+    elif [[ "$KEY" == "MAXSIZE" ]]; then
+        if [[ "$VAL" == "" ]]; then
+            info "CLEAR: Resizing turned off"
+        else
+            info "SET: Max image size = $VAL";
+        fi
+        maxSize="$VAL"
+    elif [[ "$KEY" == "MINSAVE" ]]; then
+        if [[ "$VAL" == "" ]]; then
+            info "CLEAR: Minimum percent saving threshold turned off"
+        else
+            info "SET: Minimum savings threshold = $VAL";
+        fi
+        minSave="$VAL"
     elif [[ "$KEY" == "" ]]; then
         foo=1
     else
