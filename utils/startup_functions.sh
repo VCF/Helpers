@@ -45,7 +45,7 @@ function openEmacs {
     fi
     if [[ ! -f "$myFile" ]]; then
         msg "$FgRed;$BgYellow" "openEmacs() can not find the requested file:"
-        msg "$FgYellow;$BgBlue" "  $myFile"
+        msg "$FgRed;$BgYellow" "  $myFile"
         return
     fi
     bnFile="$(basename "$myFile")"
@@ -100,6 +100,7 @@ function confirmDir {
         else
             msg "$FgRed;$BgYellow" " Directory FAIL: $chkDir"
         fi
+        return
     fi
     msg "$FgBlue" "   Directory OK: $chkDir"
 }

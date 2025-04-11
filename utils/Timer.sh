@@ -74,7 +74,9 @@ do
     printf "$FMT" "$(secondsToNiceTime "$REMAIN")"
     sleep 1
 done
-printf "\r\e[41;33;1mCountdown Complete\e[m $TIME seconds elapsed. \e[34mHit Ctrl-c to cancel\e[m\n"
+
+NICE="$(secondsToNiceTime "$TIME")"
+printf "\r\e[41;33;1mCountdown Complete\e[m $NICE elapsed. \e[34mHit Ctrl-c to cancel\e[m\n"
 
 $ALARMEXE "$my_dir/Beep_example"
 
