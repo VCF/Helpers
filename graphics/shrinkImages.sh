@@ -3,18 +3,16 @@
 
 ## Simple argument parsing
 ##   https://stackoverflow.com/a/33826763
-TARGET=""
+TARGET="" OUTSIZE=300 FACTOR=2 MINSAVE=50
 while [[ "$#" -gt 0 ]]; do
     case $1 in
-        -t|--target) target="$2"; shift ;;
-        -u|--uglify) uglify=1 ;;
+        -o|--outsize) OUTSIZE="$2"; shift ;;
+        -t|--threshold) FACTOR="$2"; shift ;;
+        -m|--minsavings) MINSAVE="$2"; shift ;;
         *) TARGET="$1"; break ;;
     esac
     shift
 done
-
-## What is the target folder to search?
-TARGET="$1"
 
 if [[ -z "$TARGET" ]]; then
     echo -e "\033[1;31m
@@ -44,19 +42,9 @@ You requested processing images from:
     exit;
 fi
 
-## What is the desired file size, in kilobytes
-OUTSIZE="${2:-300}"
-
-## What is the desired threshold factor? That is, how much larger than
-## the desired file size should trigger a resize?
-FACTOR="${3:-2}"
-GETSIZE=$(( $FACTOR * $OUTSIZE ))
-
-## Minimum desired file savings
-MINSAVE="${4:-50}"
-
 ## Math in base:
 ##  https://unix.stackexchange.com/a/299327
+GETSIZE=$(( $FACTOR * $OUTSIZE ))
 
 ## Where the resized files will be written
 OUTPUT="$TARGET/resized"
@@ -78,12 +66,14 @@ Reducing images to \033[1;32m${OUTSIZE} kb\033[0m
 Writing images to:
   \033[1;34m${OUTPUT}\033[0m
 "
+# exit
 
 found=$(find "$TARGET" -maxdepth 1 -size "+${GETSIZE}k" -and \
      -iname '*.jpg' -or \
      -iname '*.jpeg' -or \
      -iname '*.png' -or \
      -iname '*.webp' -or \
+     -iname '*.orf' -or \
      -iname '*.gif' | \
     sed 's/.*\///')
 
