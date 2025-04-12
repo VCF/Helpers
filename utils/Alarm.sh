@@ -26,7 +26,7 @@ SOUND=$BASE
 pexe="gst123"
 # PLAYER=`which audiopreview`
 PLAYER="$(which $pexe)"
-TERMINAL=`which aterm`
+TERMINAL="xterm"
 VOL=50
 #TERMINAL=xterm
 # TERMINAL=gnome-terminal
@@ -41,11 +41,11 @@ This script uses $pexe to play the sound clip
     exit
 fi
 
-if [[ -z "$TERMINAL" ]]; then
+if [[ -z "$TERMINAL" || -z "$(which $TERMINAL)" ]]; then
     echo "
-This script uses aterm as a terminal
+This script uses $TERMINAL as a terminal
 
-    sudo apt-get install aterm
+    sudo apt-get install $TERMINAL
 
 "
     exit
@@ -69,13 +69,11 @@ fi
 
 PROMPT="ALARM : Ctrl-C to silence"
 
-$TERMINAL -sb -sr -st  \
+$TERMINAL -sb  \
           -geometry 50x25+100+100 \
         -background orange \
         -foreground blue \
-    -backgroundType scale \
-  -backgroundPixmap "$BASE.jpg" \
-             -title "$PROMPT" \
+             -T "$PROMPT" \
                  -e $PLAYER --repeat --quiet $SOUND \
     2>/dev/null
 
