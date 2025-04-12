@@ -122,3 +122,45 @@ function countdown {
     done
     echo "                    "
 }
+
+function start_ssh_agent {
+    ## https://stackoverflow.com/a/48509425
+    ssh-add -l &>/dev/null
+    if [ "$?" == 2 ]; then
+        # Could not open a connection to your authentication agent.
+
+        # Load stored agent connection info.
+        test -r ~/.ssh-agent && \
+            eval "$(<~/.ssh-agent)" >/dev/null
+
+        ssh-add -l &>/dev/null
+        if [ "$?" == 2 ]; then
+            # Start agent and store agent connection info.
+            (umask 066; ssh-agent > ~/.ssh-agent)
+            eval "$(<~/.ssh-agent)" >/dev/null
+            msg "$FgGreen" "      SSH Agent: Started PID $SSH_AGENT_PID"
+        else
+            msg "$FgBlue" "      SSH Agent: Loaded from ~/.ssh_agent"
+        fi
+    elif [[ -z "$SSH_AGENT_NOTED" ]]; then
+        msg "$FgBlue" "      SSH Agent: Running"
+    fi
+    SSH_AGENT_NOTED="1"
+}
+
+function add_ssh_key {
+    path="$1"
+    if [[ ! -s "$path" ]]; then
+        msg "$FgRed;$BgYellow" "No such SSH Key: $path"
+        return
+    fi
+
+    start_ssh_agent
+    chk=$(ssh-add -l | grep -F "$path")
+    if [[ -z "$chk" ]]; then
+        msg "$FgMagenta" "SSH Key Request: $path"
+        ssh-add "$path"
+    else
+        msg "$FgBlue" "  SSH Key Ready: $path"
+     fi
+}
