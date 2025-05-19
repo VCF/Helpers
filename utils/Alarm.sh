@@ -23,7 +23,10 @@ fi
 
 SOUND=$BASE
 ## AudioPreview no longer in Tricia
-pexe="gst123"
+## gst123 no longer works in Wilma
+##   -> https://askubuntu.com/a/920542
+pexe="play"
+ppack="sox"  # In package sox
 # PLAYER=`which audiopreview`
 PLAYER="$(which $pexe)"
 TERMINAL="xterm"
@@ -35,7 +38,7 @@ if [[ -z "$PLAYER" ]]; then
     echo "
 This script uses $pexe to play the sound clip
 
-    sudo apt-get install $pexe
+    sudo apt-get install $ppack
 
 "
     exit
@@ -74,7 +77,7 @@ $TERMINAL -sb  \
         -background orange \
         -foreground blue \
              -T "$PROMPT" \
-                 -e $PLAYER --repeat --quiet $SOUND \
+                 -e $PLAYER -q $SOUND repeat - \
     2>/dev/null
 
 # I am redirecting STDERR to devnull because I am getting apprently ignorable
