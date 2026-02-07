@@ -7,6 +7,8 @@ Used for periodic reminders
 my_dir="$(dirname "$0")"
 
 . "$my_dir/timeFunctions.sh"
+## Basic function with currently functional sound-from-command-line:
+. "$my_dir/playSound.sh"
 
 CF="$my_dir/../../confFiles"
 UTF="$CF/systemSetup/_util_functions.sh"
@@ -23,9 +25,6 @@ This script expects the 'confFiles' repo to be cloned here:
 "
     exit
 fi
-
-pexe="gst123"
-exe="$(which "$pexe")"
 
 TREQ="$1"
 REPS="${2:-999999999}"
@@ -45,7 +44,7 @@ TIME="$(requestToSeconds "$TREQ")"
 
 [[ -z "$TIME" ]] && exit
 
-printf '\e[34;43m%-6s\e[m' "This is text"
+## The ANSI Color used for the time remaining
 PERCCOL="32";
 
 DONE=0
@@ -88,5 +87,5 @@ do
     printf "\r\e[0K" 
     ELAPSE=$(( $NOW - $START ))
     echo "#${DONE} - $(secondsToNiceTime "$ELAPSE")"
-    PLAYIT="$($exe "$SOUND")"
+    PLAYIT="$(playSound "$SOUND")"
 done
