@@ -6,10 +6,12 @@ has become tedious. This basic script just centralizes the current
 utility that's working in the most recent versions of Mint
 
 Prior tools that don't work now:
-  gst123
+  AudioPreview    failed in Tricia
+  gst123          failed in Wilma
 
 "
 
+## play (via sox) suggested in https://askubuntu.com/a/920542
 # The executable we'll use
 psExe="play"
 # The package it resides in
